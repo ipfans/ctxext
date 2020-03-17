@@ -27,6 +27,12 @@ func New(ctx context.Context) *Context {
 	}
 }
 
+// Is for convert stdlib context.Context
+func Is(ctx context.Context) (c *Context, ok bool) {
+	c, ok = ctx.(*Context)
+	return
+}
+
 // Copy or new *Context based on context.Context
 func Copy(ctx context.Context) *Context {
 	if ctx == nil {

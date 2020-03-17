@@ -330,3 +330,43 @@ func TestCopy1(t *testing.T) {
 		})
 	}
 }
+
+func TestIs(t *testing.T) {
+	type args struct {
+		ctx context.Context
+	}
+	tests := []struct {
+		name   string
+		args   args
+		wantC  *Context
+		wantOk bool
+	}{
+		{
+			"stdlib context.Context",
+			args{
+				context.TODO(),
+			},
+			nil,
+			false,
+		},
+		{
+			"stdlib context.Context",
+			args{
+				New(context.TODO()),
+			},
+			New(context.TODO()),
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotC, gotOk := Is(tt.args.ctx)
+			if !reflect.DeepEqual(gotC, tt.wantC) {
+				t.Errorf("Is() gotC = %v, want %v", gotC, tt.wantC)
+			}
+			if gotOk != tt.wantOk {
+				t.Errorf("Is() gotOk = %v, want %v", gotOk, tt.wantOk)
+			}
+		})
+	}
+}
