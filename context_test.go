@@ -3,6 +3,7 @@ package ctxext
 import (
 	"context"
 	"reflect"
+	"sync"
 	"testing"
 )
 
@@ -35,7 +36,7 @@ func TestContext_Set(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := New(context.TODO())
+			ctx := New(nil)
 			ctx.Set(tt.args.key, tt.args.val)
 			if !reflect.DeepEqual(ctx.m, tt.wantM) {
 				t.Errorf("Set() = %v, want %v", ctx.m, tt.wantM)
@@ -193,14 +194,14 @@ func TestContext_Exists(t *testing.T) {
 		key interface{}
 		val interface{}
 	}
-	type args struct{
+	type args struct {
 		key string
 	}
 	tests := []struct {
-		name  string
+		name   string
 		fields fields
-		args  args
-		want bool
+		args   args
+		want   bool
 	}{
 		{
 			"Context not exists.",
@@ -247,6 +248,84 @@ func TestContext_Exists(t *testing.T) {
 			}
 			if !reflect.DeepEqual(ctx.Exists(tt.args.key), tt.want) {
 				t.Errorf("Exists() = %v, want %v", ctx.m, tt.want)
+			}
+		})
+	}
+}
+
+func TestCopy_Exception(t *testing.T) {
+	ctx := New(context.TODO())
+	ctx.Set("data", "123")
+	newctx := Copy(ctx)
+	newctx.Set("data", "456")
+	if !reflect.DeepEqual(ctx.Value("data"), "123") {
+		t.Errorf("Old context Value() = %v, want %v", ctx.Value("data"), "123")
+		return
+	}
+	if !reflect.DeepEqual(newctx.Value("data"), "456") {
+		t.Errorf("Old context Value() = %v, want %v", ctx.Value("data"), "456")
+		return
+	}
+
+	// map will be modified.
+	m := map[string]string{
+		"aaa": "bbb",
+	}
+	ctx.Set("map", m)
+	newctx = Copy(ctx)
+	mm := newctx.Value("map").(map[string]string)
+	mm["aaa"] = "ccc"
+	oldv := ctx.Value("map").(map[string]string)["aaa"]
+	if !reflect.DeepEqual(oldv, "ccc") {
+		t.Errorf("Old context Value() = %v, want %v", oldv, "ccc")
+	}
+	newv := newctx.Value("map").(map[string]string)["aaa"]
+	if !reflect.DeepEqual(newv, "ccc") {
+		t.Errorf("Old context Value() = %v, want %v", newv, "ccc")
+	}
+}
+
+func TestCopy1(t *testing.T) {
+	ctx := New(context.TODO())
+	ctx.Set("data", "123")
+	type args struct {
+		ctx context.Context
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *Context
+	}{
+		{
+			"nil context",
+			args{
+				nil,
+			},
+			&Context{
+				context.TODO(),
+				sync.RWMutex{},
+				map[string]interface{}{},
+			},
+		},
+		{
+			"context wrap",
+			args{
+				ctx,
+			},
+			&Context{
+				ctx,
+				sync.RWMutex{},
+				map[string]interface{}{
+					"data": "123",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := tt.args.ctx
+			if got := Copy(ctx); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Copy() = %v, want %v", got, tt.want)
 			}
 		})
 	}
